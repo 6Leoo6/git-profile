@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - os: windows
+            arch: amd64
+            artifact: git-profile-windows-amd64.exe
+          - os: windows
+            arch: arm64
+            artifact: git-profile-windows-arm64.exe
+          - os: linux
+            arch: amd64
+            artifact: git-profile-linux-amd64
+          - os: linux
+            arch: arm64
+            artifact: git-profile-linux-arm64
+          - os: darwin
+            arch: amd64
+            artifact: git-profile-darwin-amd64
+          - os: darwin
+            arch: arm64
+            artifact: git-profile-darwin-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build -trimpath -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+            -o dist/${{ matrix.artifact }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+          retention-days: 1
+
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            ## Install
+
+            Download the binary for your platform below, rename it to `git-profile` (or `git-profile.exe` on Windows), and place it somewhere on your `PATH`.
+
+            ### Verify checksum (optional)
+            ```sh
+            sha256sum --check checksums.txt
+            ```
+          files: |
+            dist/*
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

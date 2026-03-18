@@ -1,4 +1,4 @@
-module git-profile
+module github.com/6Leoo6/git-profile
 
 go 1.26
 

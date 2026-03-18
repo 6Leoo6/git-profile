@@ -210,8 +210,8 @@ func showHelp(cfg Config) {
 
   %sUSAGE%s
     %sgit-profile%s                              show profiles and active identity
-    %sgit-profile [name]%s                       apply profile globally
-    %sgit-profile [name] --local%s               apply profile for current repo only
+    %sgit-profile [name]%s                       apply profile to current repo (default)
+    %sgit-profile [name] --global%s              apply profile globally
     %sgit-profile add [name] [Full Name] [email]%s  add or update a profile
     %sgit-profile --help%s                       show this help
 
@@ -274,7 +274,7 @@ func main() {
 		addProfile(cfg, args[1], args[2], args[3])
 
 	default:
-		local := len(args) >= 2 && args[1] == "--local"
-		switchProfile(cfg, args[0], local)
+		global := len(args) >= 2 && args[1] == "--global"
+		switchProfile(cfg, args[0], !global)
 	}
 }
